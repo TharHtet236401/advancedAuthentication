@@ -66,10 +66,16 @@ export const verifyEmail = async (req, res) => {
     await user.save();
 
     await sendWelcomeEmail(user.email, user.name);
+    // console.log("Email sent successfully");
   } catch (error) {
     console.log(error);
   }
 };
+
+
+// export const verifyEmail = async (req, res) => {
+//   res.send("verifyEmail");
+// };
 
 export const signIn = async (req, res) => {
   res.send("signUp");
