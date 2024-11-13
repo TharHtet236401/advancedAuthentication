@@ -1,7 +1,12 @@
 import { User } from "../models/auth.model.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/email.js";
+import {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+} from "../mailtrap/email.js";
 
 export const signUp = async (req, res) => {
   const { email, password, name } = req.body;
@@ -111,13 +116,11 @@ export const signIn = async (req, res) => {
 
     generateTokenAndSetCookie(res, user._id);
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Logged in successfully",
-        user: { ...user._doc, password: undefined },
-      });
+    res.status(200).json({
+      success: true,
+      message: "Logged in successfully",
+      user: { ...user._doc, password: undefined },
+    });
   } catch (error) {
     console.log(error);
   }
@@ -126,4 +129,36 @@ export const signIn = async (req, res) => {
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const resetPasswordToken = crypto.randomBytes(32).toString("hex");
+    const resetPasswordTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+
+    user.resetPasswordToken = resetPasswordToken;
+    user.resetPasswordExpiresAt = resetPasswordTokenExpiresAt;
+
+    await user.save();
+
+    await sendPasswordResetEmail(
+      user.email,
+      `http://localhost:3000/reset-password/${resetPasswordToken}`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset email sent successfully",
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
