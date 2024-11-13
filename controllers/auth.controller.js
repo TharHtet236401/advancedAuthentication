@@ -6,6 +6,7 @@ import {
   sendVerificationEmail,
   sendWelcomeEmail,
   sendPasswordResetEmail,
+  sendResetSuccessEmail,
 } from "../mailtrap/email.js";
 
 export const signUp = async (req, res) => {
@@ -157,6 +158,36 @@ export const forgotPassword = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Password reset email sent successfully",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  try {
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpiresAt: { $gt: Date.now() },
+    });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid token or token expired" });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiresAt = undefined;
+
+    await user.save();
+    await sendResetSuccessEmail(user.email);
+    res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
     });
   } catch (error) {
     console.log(error);
